@@ -1,14 +1,12 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Query,Path
 from pydantic import BaseModel
-
-class Person(BaseModel):
-    name: str
-    age: int | None
-
 
 app = FastAPI()
 
+class Invalidation(BaseModel):
+   name : str | None = Query(max_length=5)
+   age : int | None
 
-@app.post('/home')
-async def root(prs: Person):
-    return prs.name
+@app.post('/register/{ids}')
+async def getName(obj:Invalidation, ids: int = Path(lt=50)):
+   return obj, ids
