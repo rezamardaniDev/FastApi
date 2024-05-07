@@ -1,31 +1,28 @@
-from fastapi import FastAPI, Query,Path, status, HTTPException, Request
-from pydantic import BaseModel
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Depends, HTTPException
+from sqlalchemy.orm import Session
+from database import engin, SessionLocal
+import schemas, models
 
-from fastapi.templating import Jinja2Templates
 
+models.Base.metadata.create_all(bind=engin)
 app = FastAPI()
-templates = Jinja2Templates(directory='templates')
 
 
-class UserIn(BaseModel):
-  name:  str | None = Query(max_length=10)
-  email: str | None = Query(max_length=20)
-  password: str | None = Query(min_length=8)
+def get_db():
+   db = SessionLocal()
+   try:
+        yield db
+   finally:
+      db.close()
 
 
-class UserOut(BaseModel):
-   name: str
-   email: str
-
-
-@app.post('/register', response_model=UserOut, status_code=status.HTTP_200_OK)
-async def getName(user: UserIn):
-   if user.name == "admin":
-      raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="user cant set name: admin")
-   return user
-
-
-@app.get('/home', response_class=HTMLResponse)
-def homePage(request: Request):
-   return templates.TemplateResponse('index.html' ,context={'request': request, 'name': 'reza'})
+@app.post("/users", response_model=schemas.User)
+def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    db_user = db.query(models.User).filter(models.User.email==user.email).fitst()
+    if db_user:
+        raise HTTPException(status_code=400 , detail="user are exist!")
+    user = models.User(email=user.email, username=user.username, password=user.password)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
